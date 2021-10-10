@@ -1,34 +1,87 @@
-(function (graph) {
-  function require(module) {
-    function localRequire(relativePath) {
-      return require(graph[module].dependecies[relativePath]);
+(function (modules) {
+  const module_cache = {};
+  function require(id) {
+    const [fn, mapping] = modules[id];
+
+    function localRequire(name) {
+      return require(mapping[name]);
     }
-    var exports = {};
-    (function (require, exports, code) {
-      eval(code);
-    })(localRequire, exports, graph[module].code);
-    return exports;
+
+    const cachedModule = module_cache[id];
+    if (cachedModule !== undefined) {
+      return cachedModule.exports;
+    }
+
+    const module = (module_cache[id] = {
+      exports: {},
+    });
+
+    fn(localRequire, module, module.exports);
+
+    return module.exports;
   }
+
   require('./example/entry.js');
 })({
-  './example/entry.js': {
-    dependecies: {
-      './message.js': './example/message.js',
-      './name.js': './example/name.js',
-      './utils/a.js': './example/utils/a.js',
+  './example/entry.js': [
+    function (require, module, exports) {
+      'use strict';
+
+      var _message = _interopRequireDefault(require('./message.js'));
+
+      require('./utils/index.js');
+
+      function _interopRequireDefault(obj) {
+        return obj && obj.__esModule ? obj : { default: obj };
+      }
+
+      console.log(_message['default']);
     },
-    code: '"use strict";\n\nvar _message = _interopRequireDefault(require("./message.js"));\n\nvar _name = require("./name.js");\n\nvar _a = require("./utils/a.js");\n\nfunction _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }\n\nconsole.log(_message["default"], _name.name, _a.a);',
-  },
-  './example/message.js': {
-    dependecies: { './name.js': './example/name.js' },
-    code: '"use strict";\n\nObject.defineProperty(exports, "__esModule", {\n  value: true\n});\nexports["default"] = void 0;\n\nvar _name = require("./name.js");\n\nvar _default = "hello ".concat(_name.name, "!");\n\nexports["default"] = _default;',
-  },
-  './example/name.js': {
-    dependecies: {},
-    code: '"use strict";\n\nObject.defineProperty(exports, "__esModule", {\n  value: true\n});\nexports.name = void 0;\nvar name = \'world\';\nexports.name = name;',
-  },
-  './example/utils/a.js': {
-    dependecies: { '../name.js': './example/name.js' },
-    code: '"use strict";\n\nObject.defineProperty(exports, "__esModule", {\n  value: true\n});\nexports.a = void 0;\n\nvar _name = require("../name.js");\n\nvar a = \'aaa\';\nexports.a = a;',
-  },
+    {
+      './message.js': './example/message.js',
+      './utils/index.js': './example/utils/index.js',
+    },
+  ],
+  './example/message.js': [
+    function (require, module, exports) {
+      'use strict';
+
+      Object.defineProperty(exports, '__esModule', {
+        value: true,
+      });
+      exports['default'] = void 0;
+
+      var _name = require('./name.js');
+
+      var _default = 'hello '.concat(_name.name, '!');
+
+      exports['default'] = _default;
+    },
+    { './name.js': './example/name.js' },
+  ],
+  './example/utils/index.js': [
+    function (require, module, exports) {
+      'use strict';
+
+      var _name = require('../name.js');
+    },
+    { '../name.js': './example/name.js' },
+  ],
+  './example/name.js': [
+    function (require, module, exports) {
+      'use strict';
+
+      Object.defineProperty(exports, '__esModule', {
+        value: true,
+      });
+      exports.name = void 0;
+
+      var _message = require('./message.js');
+
+      // 测试循环依赖
+      var name = 'world';
+      exports.name = name;
+    },
+    { './message.js': './example/message.js' },
+  ],
 });
